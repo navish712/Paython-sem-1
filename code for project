@@ -1,0 +1,129 @@
+import pandas as pd
+
+def load_students():
+    df = pd.read_csv("students.csv")
+
+    valid_rows = []
+
+    for _, row in df.iterrows():
+        try:
+            name = str(row["Name"]).strip()
+            marks = float(row["Marks"])
+            income = float(row["Income"])
+            attendance = float(row["Attendance"])
+
+            if (pd.isna(row["Name"]) or pd.isna(row["Marks"]) or
+                pd.isna(row["Income"]) or pd.isna(row["Attendance"]) or
+                not name or marks < 0 or marks > 100 or
+                income < 0 or attendance < 0 or attendance > 100):
+                raise ValueError
+
+            valid_rows.append({
+                "Name": name,
+                "Marks": marks,
+                "Income": income,
+                "Attendance": attendance
+            })
+
+        except (ValueError, TypeError):
+            print(f"Invalid data for {row['Name']}. Row skipped.")
+
+    return pd.DataFrame(valid_rows)
+
+
+def analyze_students(df):
+    df["Eligible"] = (
+        (df["Marks"] >= 75) &
+        (df["Income"] <= 500000) &
+        (df["Attendance"] >= 75)
+    )
+
+    df["Scholarship"] = 0
+    df["Type"] = "Not Eligible"
+
+    full = df["Eligible"] & (df["Marks"] >= 90) & (df["Income"] <= 300000)
+    partial = df["Eligible"] & ~full
+
+    df.loc[full, "Scholarship"] = 50000
+    df.loc[full, "Type"] = "Full"
+
+    df.loc[partial, "Scholarship"] = 25000
+    df.loc[partial, "Type"] = "Partial"
+
+    return df
+
+
+def show_results(df):
+    for _, row in df.iterrows():
+        if row["Eligible"]:
+            print(f"{row['Name']} | {row['Type']} | Rs. {int(row['Scholarship'])}")
+        else:
+            print(f"{row['Name']} | Not Eligible")
+
+
+def show_summary(df):
+    eligible = df[df["Eligible"]]
+
+    full = (df["Type"] == "Full").sum()
+    partial = (df["Type"] == "Partial").sum()
+    not_eligible = (~df["Eligible"]).sum()
+
+    total = int(eligible["Scholarship"].sum())
+    average = eligible["Marks"].mean() if not eligible.empty else 0
+
+    print(f"Eligible: {len(eligible)} | Not Eligible: {not_eligible} | Full: {full} | Partial: {partial}")
+    print(f"Total scholarship: Rs. {total} | Average marks (eligible): {average:.2f}")
+
+
+def filter_marks(df):
+    try:
+        minimum = float(input("Enter minimum marks: "))
+        selected = df[df["Marks"] >= minimum]
+
+        if selected.empty:
+            print("No students found.")
+        else:
+            for _, row in selected.iterrows():
+                print(f"{row['Name']} | {row['Marks']:g}")
+
+    except ValueError:
+        print("Invalid marks.")
+
+
+def main():
+    students = load_students()
+
+    if students.empty:
+        print("No valid student records.")
+        return
+
+    students = analyze_students(students)
+
+    while True:
+        print("\n--- Scholarship Analyzer ---")
+        print("1. Eligibility")
+        print("2. Summary")
+        print("3. Filter by marks")
+        print("4. Exit")
+
+        choice = input("Enter choice: ")
+
+        if choice == "1":
+            show_results(students)
+
+        elif choice == "2":
+            show_summary(students)
+
+        elif choice == "3":
+            filter_marks(students)
+
+        elif choice == "4":
+            print("Program ended.")
+            break
+
+        else:
+            print("Invalid choice.")
+
+
+if __name__ == "__main__":
+    main()
